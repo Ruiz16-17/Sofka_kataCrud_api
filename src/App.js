@@ -1,79 +1,115 @@
 import React, { createContext, useContext, useEffect, useReducer, useRef, useState } from 'react';
 
-const HOST_API = "http://localhost:8080/api";
+const HOST_API = 'http://localhost:8080/api';
 const initialState = {
-    list : []
+    list: [],
+    item: {}
 };
+
 const Store = createContext(initialState);
 
 const Form = () => {
 
     const formRef = useRef(null);
-
-    const {dispatch} = useContext(Store);
-
-    const [state, setState] = useState({})
+    const { dispatch, state: { item } } = useContext(Store)
+    const [state, setState] = useState(item);
 
     const onAdd = (event) => {
+
         event.preventDefault();
 
         const request = {
             name: state.name,
             id: null,
-            isComplete: false
-        }
+            isCompleted: false
+        };
 
         fetch(HOST_API + "/todo", {
             method: "POST",
             body: JSON.stringify(request),
-            headers:{
-                'Content-Type' : 'application/json'
+            headers: {
+                'Content-Type': 'application/json'
             }
         })
-        .then(response => response.json())
-        .then((todo) => {
-        dispatch({type: "add-item", item: todo});
-            setState({name:""});
-            formRef.current.reset();
-        });
+            .then(response => response.json())
+            .then((todo) => {
+                dispatch({ type: "add-item", item: todo });
+                setState({ marca: "", modelo: "", color: "" });
+                formRef.current.reset();
+            });
+    }
 
+    const onEdit = (event) => {
+
+        event.preventDefault();
+
+        const request = {
+            name: state.name,
+            id: item.id,
+            isCompleted: item.isCompleted
+        };
+
+        fetch(HOST_API + "/todo", {
+            method: "PUT",
+            body: JSON.stringify(request),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then((todo) => {
+                dispatch({ type: "update-item", item: todo });
+                setState({ marca: "", modelo: "", color: "" });
+                formRef.current.reset();
+            });
     }
 
     return <form ref={formRef}>
-        <input type="text" name="name" onChange={(event) => {
-            setState({...state, name : event.target.value})
-        }}
-        ></input>
+        <input type="text" name="name" defaultValue={item.name} onChange={(event) => {
+            setState({ ...state, name: event.target.value })
+        }}></input>
         <button onClick={onAdd}>Agregar</button>
+        <button onClick={onEdit}>Editar</button>
     </form>
-    
 }
+
+
+
 
 const List = () => {
 
-    const {dispatch, state} = useContext(Store);
+    const { dispatch, state } = useContext(Store);
 
     useEffect(() => {
-        fetch(HOST_API+"/todos")
-        .then(response => response.json())
-        .then((list) => {
-            dispatch({type: "update-list", list})
+
+        fetch(HOST_API + "/todos")
+            .then(response => response.json())
+            .then((list) => {
+                dispatch({ type: "update-list", list })
+            })
+    }, [state.list.lenght, dispatch]);
+
+    const onDelete = (id) => {
+        fetch(HOST_API + "/" + id + "/todo", {
+            method: "DELETE"
         })
-    }, [state.list.length, dispatch]);
+            .then((list) => {
+                dispatch({ type: "delete-item" }, id)
+            })
+    };
+
+    const onEdit = (todo) => {
+        dispatch({ type: "edit-item", item: todo })
+    }
 
     return <div>
         <table>
             <thead>
                 <tr>
-                    <td>
-                        Id
-                    </td>
-                    <td>
-                        Nombre
-                    </td>
-                    <td>
-                        ¿Está completado?
-                    </td>
+                    <td>ID</td>
+                    <td>Nombre</td>
+                    <td>Descripción</td>
+                    <td>¿Está completado?</td>
                 </tr>
             </thead>
             <tbody>
@@ -81,7 +117,9 @@ const List = () => {
                     return <tr key={todo.id}>
                         <td>{todo.id}</td>
                         <td>{todo.name}</td>
-                        <td>{todo.isComplete}</td>
+                        <td>{todo.isCompleted}</td>
+                        <td><button onClick={() => onDelete(todo.id)}>Eliminar</button></td>
+                        <td><button onClick={() => onEdit(todo)}>Editar</button></td>
                     </tr>
                 })}
             </tbody>
@@ -89,37 +127,40 @@ const List = () => {
     </div>
 }
 
+const StoreProvider = ({ children }) => {
+
+    const [state, dispatch] = useReducer(reducer, initialState);
+
+    return <Store.Provider value={{ state, dispatch }}>
+        {children}
+    </Store.Provider>
+}
+
 function reducer(state, action) {
     switch (action.type) {
+        case 'delete-item':
+            const listUpdate = state.filter((item) => {
+                return item.matricula !== action.matricula;
+            });
+            return { ...state, list: listUpdate }
         case 'update-list':
-    
-            return {...state, list: action.list}
+            return { ...state, list: action.list }
+        case 'edit-item':
+            return { ...state, item: action.item }
         case 'add-item':
             const newList = state.list;
             newList.push(action.item);
-            return {...state, list: newList}
-    
+            return { ...state, list: newList }
         default:
             return state;
     }
 }
 
-const StoreProvider = ({ children }) => {
-
-    const [state, dispatch] = useReducer(reducer, initialState);
-
-    return <Store.Provider value={{state, dispatch}}>
-        {children}
-    </Store.Provider>
-}
-
-function App (){
-    return (
-        <StoreProvider>
+function App() {
+    return <StoreProvider>
         <Form />
-            <List/>
-        </StoreProvider>
-    )
+        <List />
+    </StoreProvider>
 }
 
 export default App;
