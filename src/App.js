@@ -34,10 +34,12 @@ const Form = () => {
             .then(response => response.json())
             .then((todo) => {
                 dispatch({ type: "add-item", item: todo });
-                setState({ marca: "", modelo: "", color: "" });
+                setState({ name: "" });
                 formRef.current.reset();
             });
     }
+
+
 
     const onEdit = (event) => {
 
@@ -59,7 +61,7 @@ const Form = () => {
             .then(response => response.json())
             .then((todo) => {
                 dispatch({ type: "update-item", item: todo });
-                setState({ marca: "", modelo: "", color: "" });
+                setState({ name: "" });
                 formRef.current.reset();
             });
     }
@@ -68,13 +70,15 @@ const Form = () => {
         <input type="text" name="name" defaultValue={item.name} onChange={(event) => {
             setState({ ...state, name: event.target.value })
         }}></input>
-        <button onClick={onAdd}>Agregar</button>
-        <button onClick={onEdit}>Editar</button>
+        {
+            item.id && <button onClick={onEdit}>Editar</button>
+        }
+        {
+            !item.id && <button onClick={onAdd}>Agregar</button>
+        }
+
     </form>
 }
-
-
-
 
 const List = () => {
 
@@ -100,7 +104,7 @@ const List = () => {
 
     const onEdit = (todo) => {
         dispatch({ type: "edit-item", item: todo })
-    }
+    };
 
     return <div>
         <table>
@@ -117,7 +121,7 @@ const List = () => {
                     return <tr key={todo.id}>
                         <td>{todo.id}</td>
                         <td>{todo.name}</td>
-                        <td>{todo.isCompleted}</td>
+                        <td>{todo.isCompleted === true ? "SÍ" : "NO"}</td>
                         <td><button onClick={() => onDelete(todo.id)}>Eliminar</button></td>
                         <td><button onClick={() => onEdit(todo)}>Editar</button></td>
                     </tr>
@@ -138,9 +142,17 @@ const StoreProvider = ({ children }) => {
 
 function reducer(state, action) {
     switch (action.type) {
+        case 'update-item':
+            const listUpdateEdit = state.list.map((item) => {
+                if (item.id === action.item.id) {
+                    return action.item;
+                }
+                return item;
+            });
+            return { ...state, list: listUpdateEdit, item: {} }
         case 'delete-item':
-            const listUpdate = state.filter((item) => {
-                return item.matricula !== action.matricula;
+            const listUpdate = state.list.filter((item) => {
+                return item.id !== action.id;
             });
             return { ...state, list: listUpdate }
         case 'update-list':
